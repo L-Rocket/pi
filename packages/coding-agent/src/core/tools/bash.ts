@@ -169,6 +169,12 @@ export interface BashToolOptions {
 	shellPath?: string;
 	/** Hook to adjust command, cwd, or env before execution */
 	spawnHook?: BashSpawnHook;
+	/**
+	 * Hook to relocate the persisted full-output file after truncation (for
+	 * example copy it into a remote sandbox so later read calls can see it).
+	 * Returns the path to present to the model.
+	 */
+	persistFullOutput?: (localPath: string) => Promise<string>;
 }
 
 const BASH_PREVIEW_LINES = 5;
@@ -369,6 +375,9 @@ export function createBashToolDefinition(
 				emitOutputUpdate();
 				const snapshot = output.snapshot({ persistIfTruncated: true });
 				await output.closeTempFile();
+				if (snapshot.fullOutputPath && options?.persistFullOutput) {
+					snapshot.fullOutputPath = await options.persistFullOutput(snapshot.fullOutputPath);
+				}
 				return snapshot;
 			};
 

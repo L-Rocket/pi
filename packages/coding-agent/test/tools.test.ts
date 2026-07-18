@@ -527,6 +527,32 @@ describe("Coding Agent Tools", () => {
 			}
 		});
 
+		it("should relocate the full output path via persistFullOutput", async () => {
+			const operations: BashOperations = {
+				exec: async (_command, _cwd, { onData }) => {
+					for (let i = 1; i <= 3000; i++) {
+						onData(Buffer.from(`${i}\n`, "utf-8"));
+					}
+					return { exitCode: 0 };
+				},
+			};
+			let receivedPath: string | undefined;
+			const bash = createBashTool(testDir, {
+				operations,
+				persistFullOutput: async (localPath) => {
+					receivedPath = localPath;
+					return "/sandbox/overflow/pi-bash-relocated.log";
+				},
+			});
+
+			const result = await bash.execute("test-call-persist-hook", { command: "chatty" });
+
+			expect(receivedPath).toBeDefined();
+			expect(readFileSync(receivedPath!, "utf-8")).toContain("2999\n3000");
+			expect(getTextOutput(result)).toContain("Full output: /sandbox/overflow/pi-bash-relocated.log");
+			expect(result.details?.fullOutputPath).toBe("/sandbox/overflow/pi-bash-relocated.log");
+		});
+
 		it("should throw error when cwd does not exist", async () => {
 			const nonexistentCwd = "/this/directory/definitely/does/not/exist/12345";
 
@@ -819,6 +845,78 @@ describe("Coding Agent Tools", () => {
 
 			expect(getTextOutput(result)).toContain("No matches found");
 			expect(existsSync(marker)).toBe(false);
+		});
+
+		it("should format matches from a custom search backend like rg output", async () => {
+			const grep = createGrepTool(testDir, {
+				operations: {
+					isDirectory: async () => true,
+					readFile: async () => "",
+					search: async () => ({
+						matches: [{ filePath: join(testDir, "remote.txt"), lineNumber: 7, lineText: "remote match" }],
+						limitReached: false,
+					}),
+				},
+			});
+
+			const result = await grep.execute("test-call-grep-remote", { pattern: "remote", path: testDir });
+
+			expect(getTextOutput(result)).toContain("remote.txt:7: remote match");
+		});
+
+		it("should expand context for custom search matches via operations.readFile", async () => {
+			const grep = createGrepTool(testDir, {
+				operations: {
+					isDirectory: async () => true,
+					readFile: async () => "before\nhit\nafter\n",
+					search: async () => ({
+						matches: [{ filePath: join(testDir, "ctx.txt"), lineNumber: 2 }],
+						limitReached: false,
+					}),
+				},
+			});
+
+			const result = await grep.execute("test-call-grep-remote-ctx", { pattern: "hit", path: testDir, context: 1 });
+
+			const output = getTextOutput(result);
+			expect(output).toContain("ctx.txt-1- before");
+			expect(output).toContain("ctx.txt:2: hit");
+			expect(output).toContain("ctx.txt-3- after");
+		});
+
+		it("should surface the limit notice for custom search backends", async () => {
+			const grep = createGrepTool(testDir, {
+				operations: {
+					isDirectory: async () => true,
+					readFile: async () => "",
+					search: async (params) => ({
+						matches: [{ filePath: join(testDir, "l.txt"), lineNumber: 1, lineText: `limit ${params.limit}` }],
+						limitReached: true,
+					}),
+				},
+			});
+
+			const result = await grep.execute("test-call-grep-remote-limit", {
+				pattern: "limit",
+				path: testDir,
+				limit: 5,
+			});
+
+			expect(getTextOutput(result)).toContain("[5 matches limit reached. Use limit=10 for more, or refine pattern]");
+		});
+
+		it("should report no matches for an empty custom search result", async () => {
+			const grep = createGrepTool(testDir, {
+				operations: {
+					isDirectory: async () => true,
+					readFile: async () => "",
+					search: async () => ({ matches: [], limitReached: false }),
+				},
+			});
+
+			const result = await grep.execute("test-call-grep-remote-empty", { pattern: "nothing", path: testDir });
+
+			expect(getTextOutput(result)).toContain("No matches found");
 		});
 	});
 
