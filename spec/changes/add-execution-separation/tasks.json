@@ -100,9 +100,9 @@
     "task": "全量验证",
     "steps": [
       { "step": "npm run check 全绿（biome/tsgo/pinned-deps）", "completed": true },
-      { "step": "./test.sh 非 e2e 套件全绿（本地回落回归）", "completed": false },
+      { "step": "./test.sh 非 e2e 套件全绿（本地回落回归）", "completed": true },
       { "step": "packages/managed 测试全绿", "completed": true }
     ],
-    "passes": false
+    "passes": true
   }
 ]
