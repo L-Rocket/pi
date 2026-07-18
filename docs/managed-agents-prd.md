@@ -6,6 +6,7 @@
 | 日期 | 2026-07-18 |
 | 仓库 | L-Rocket/pi（fork of earendil-works/pi） |
 | 范围包 | 新增 `packages/managed`；最小侵入 `packages/coding-agent` |
+| 相关文档 | [技术方案](./managed-agents-tech-design.md) · [接口规范](./managed-agents-interface-spec.md) |
 
 ## 1. 背景
 
@@ -26,6 +27,7 @@ pi coding agent 目前是单体进程：session 状态持久化与工具执行�
 2. **执行分离**：工具执行全部发生在 Sandbox Worker 内，Agent Runtime 不直接触碰执行环境的文件系统和进程空间。
 3. **Runtime 无状态化**：Agent Runtime 是 session 的计算投影——由 sessionId 召唤、凭 sessionId 恢复、空闲可回收。
 4. **可组合**：三个部分各自独立启动、独立容器化；Runtime 仅通过 URL 引用两个服务，任一可替换为本地实现（开发态）或远程实现（云态）。
+5. **沙箱懒加载**：无工具调用的会话（纯对话）不消耗沙箱资源；沙箱按首次使用召唤，runtime 启动不依赖沙箱可达。
 
 ### 2.2 非目标（本仓库明确不做）
 
@@ -86,6 +88,8 @@ pi -p "fix the bug in src/"
 
 **Runtime 的生命周期（wake 模型）**：prompt 到达 → 外部控制面按 sessionId 查活跃 runtime → 没有则唤醒一个 → runtime 从 Session Service 加载 session → 执行 → 空闲超时由外部回收。runtime 的 identity 就是 sessionId；summon/recycle 的触发逻辑在外部控制面，不在本仓库。
 
+**沙箱的生命周期（懒加载）**：沙箱协议无握手、无持久连接，runtime 启动时不触碰沙箱，首个工具调用才产生第一次沙箱请求。沙箱的按需召唤（scale-from-zero）由外部控制面在 `PI_SANDBOX_URL` 背后实现；本仓库的保证是：runtime 在无沙箱时可正常完成无工具会话，且 sandbox client 对冷启动有界容忍（连接失败重试，见接口规范 §2.4）。
+
 ## 5. 组件设计
 
 ### 5.1 Agent Runtime
@@ -116,7 +120,7 @@ pi -p "fix the bug in src/"
 
 **一致性语义**：远程权威 + turn 边界 flush。
 
-- runtime 侧每次 append 先入本地写队列，**在 assistant `message_end`（turn 结束）时 flush**；崩溃恢复粒度 = 上一个完整 turn，与上游本地行为等价（本地 JSONL 也是 turn 结束后才落盘 assistant 消息）。
+- runtime 侧每次 append 先入本地写队列，**在 assistant `message_end`（turn 结束）时 flush**，且进程退出前必须 await 一次 flush（shutdown drain）；崩溃恢复粒度 = 上一个完整 turn。注意本地是逐 entry 同步落盘，远程模式的丢失窗口略大于本地；需要更接近本地粒度时可配置 per-entry flush（见接口规范 §5.1），协议不变。
 - `rewrite`/`fork` 为同步等待（低频操作）。
 - 单 session 同一时刻只允许一个 writer（服务端用 per-session 锁串行化 append）。
 
@@ -173,7 +177,10 @@ interface SessionStore {
 - **状态划分**：worker 进程无状态（纯执行 API，杀掉重启不影响）；workspace（`--root` 文件树）有状态，是权威数据。云上模型 = worker 是可替换容器，workspace 是挂进去的持久卷。
 - 本仓库只交付到"独立进程 + 受限环境"这一档；容器/VM/远程机隔离由部署方提供——**协议不变**，worker 镜像即可作为容器 entrypoint。
 
-**Runtime 侧接线**：7 个工具全部已有 `*Operations` 注入点（`packages/coding-agent/src/core/tools/index.ts:86-94` 的 `ToolsOptions`）。新增远程实现 `RemoteBashOperations`、`RemoteReadOperations` 等（内部共用一个 sandbox RPC client），当 `PI_SANDBOX_URL` 存在时经 `ToolsOptions` 注入。工具定义、agent loop、审批 hook 全部零改动。
+**Runtime 侧接线**：7 个工具经 `ToolsOptions`（`packages/coding-agent/src/core/tools/index.ts:86-94`）注入远程实现 `RemoteBashOperations`、`RemoteReadOperations` 等（内部共用一个 sandbox RPC client），当 `PI_SANDBOX_URL` 存在时装配。agent loop、工具 schema、审批 hook 零改动；但有两处已核实的抽象泄漏需要 additive 修补（默认行为不变）：
+
+1. **grep 主路径不在注入点后**：`grep.ts:221` 在工具体内直接 spawn rg，`GrepOperations` 只覆盖 `isDirectory`/`readFile`。需仿照 find 的 `customOps?.glob` 分支（`find.ts:155`）给 `GrepOperations` 增加可选 `search` 成员，提供时跳过本地 rg。
+2. **bash 溢出输出对模型不可见**：`OutputAccumulator` 把截断溢出写到 runtime 本地 tmpdir，远程模式下 read 工具走沙箱读不到。需给 `BashOperations` 增加可选溢出持久化 hook，远程实现经 `/v1/fs/write` 写入沙箱内约定路径。
 
 ## 6. 对现有代码的改动清单
 
@@ -184,21 +191,57 @@ interface SessionStore {
 | 新增 `packages/managed`：共享协议类型、两个服务、两个客户端、`managed` CLI | 新包 | 纯新增 |
 | `SessionStore` 接口 + `LocalSessionStore`（抽取现有 fs 逻辑）+ 异步工厂 | `coding-agent/src/core/session-manager.ts` | 重构，外部 API 不变 |
 | `PI_SANDBOX_URL` 存在时注入远程 `*Operations` | `coding-agent` 工具装配处 | additive 分支 |
-| turn 边界调用 `store.flush()` | `coding-agent/src/core/agent-session.ts`（`message_end` 处理处） | additive 调用 |
+| turn 边界调用 `store.flush()` + 退出前 drain | `coding-agent/src/core/agent-session.ts`（`message_end` 处理处） | additive 调用 |
+| `GrepOperations` 增加可选 `search` hook（提供时跳过本地 rg spawn） | `coding-agent/src/core/tools/grep.ts` | additive，默认行为不变 |
+| `BashOperations` 增加可选溢出持久化 hook（远程实现回写沙箱） | `coding-agent/src/core/tools/bash.ts` | additive，默认行为不变 |
 
-不改动：agent loop、工具定义、session 文件格式、RPC 模式协议、orchestrator、推理路径。
+不改动：agent loop、工具 schema、session 文件格式、RPC 模式协议、orchestrator、推理路径。
 
-## 7. 里程碑
+## 7. 实施步骤
 
-每个里程碑结束系统均可运行。
+推进方式：**里程碑之间顺序做**（每个里程碑结束系统均可运行）；**里程碑内部协议类型先行，server 与 client 对着协议并行开发**，在契约测试处汇合。M2 的 `SessionStore` 重构是唯一侵入上游的改动，其"外部 API 不变"以现有测试全绿为先决条件。
 
-| 里程碑 | 内容 | 验收 |
+### M1 执行分离
+
+1. `packages/managed` 骨架 + 协议类型（sandbox RPC、错误码）+ golden fixtures
+2. Sandbox Worker（jail / env scrub / exec+cancel / search / server）——与 3 并行
+3. sandbox client + 7 个远程 `*Operations`——与 2 并行
+4. 上游 additive 修补：`GrepOperations` search hook、`BashOperations` 溢出持久化 hook（见 §5.3）
+5. 接线点 #1（`_buildRuntime` 注入分支）
+
+验收：agent 在 worker 的 `--root` 内完成读写文件 + 跑 bash，逃逸路径被拒绝；grep 与大输出行为与本地一致。
+
+### M2 Session 分离
+
+6. `SessionStore` 接口 + `LocalSessionStore` 抽取 + SessionManager 改造（外部 API 不变）
+7. Session Service（store + server）——与 8 并行
+8. `RemoteSessionStore`（写队列 + turn 边界 flush + shutdown drain）——与 7 并行
+9. 接线点 #2（flush 挂接）、#4（`main.ts` 分支）
+
+验收：杀掉 runtime 进程，新进程凭 sessionId 恢复全部历史继续对话；崩溃最多丢失最后一个未 flush 的 turn。
+
+### M3 组合 demo
+
+10. `managed` CLI（sandbox/session/run）
+11. 集成测试（AC1–AC4）+ 使用文档（`packages/managed/README.md`）
+
+验收：两服务独立启动，runtime 仅通过 URL 组合，完成一个真实 coding 任务；URL 缺省时行为与上游一致。
+
+### 边界测试策略
+
+每层都有不依赖对端的契约测试；server 与 client 因此可独立开发、各自验证：
+
+| 边界 | 测试方式 | 关键用例 |
 |---|---|---|
-| M1 执行分离 | `packages/managed` 骨架 + 协议类型 + Sandbox Worker + 7 个远程 `*Operations` + `PI_SANDBOX_URL` 接线 | agent 在 worker 的 `--root` 内完成读写文件 + 跑 bash，逃逸路径被拒绝 |
-| M2 Session 分离 | `SessionStore` 抽象 + `LocalSessionStore` + Session Service + `RemoteSessionStore` + `PI_SESSION_URL` 接线 | 杀掉 runtime 进程，新进程凭 sessionId 恢复全部历史继续对话 |
-| M3 组合 demo | `managed` CLI（分别启动两服务 + runtime）+ 集成测试 + 使用文档 | 两服务独立启动，runtime 仅通过 URL 组合，完成一个真实 coding 任务 |
+| 协议编解码 | golden fixtures 双向 round-trip | server/client 各自对同一组 fixture 编解码 |
+| Sandbox Worker | 裸 HTTP 打临时 root 的 worker | jail 逃逸（`..`/绝对路径/符号链接）、env 白名单（exec `env` 断言无泄漏）、cancel 杀进程树、输出截断标志、错误码映射 |
+| 远程 operations | **与本地实现的行为一致性套件**：同一组用例对本地 ops 和远程 ops 各跑一遍 | 结果一致；错误形状一致（ENOENT 风格 / `Error("aborted")` / `Error("timeout:n")`）——工具层错误处理不变才算通过 |
+| Session Service | 裸 HTTP 打临时 dataDir | 并发 append 行原子性、rewrite 原子替换、fork header 改写；**格式互读**：服务产出的文件能被上游 `LocalSessionStore` 加载，反之亦然 |
+| RemoteSessionStore | 一致性场景 + 写队列保序 | 并发 append/flush/rewrite 下顺序不乱；turn 间崩溃恢复 = 最后已 flush 状态 |
+| 接线集成 | 沿用 `test/suite/harness.ts` + faux provider，零真实 API 调用 | AC1–AC4（凭证边界 / 执行分离 / session 恢复 / 可组合） |
+| 本地回落 | 不设 URL 跑仓库现有测试套件 | 全绿即证明开发态行为与上游一致 |
 
-测试策略：沿用仓库现有 harness（`packages/coding-agent/test/suite/harness.ts` + faux provider），不产生真实 API 调用；sandbox/session 服务测试用临时目录。
+一致性套件是测试策略的核心：它把"行为与上游一致"从口号变成可执行断言，且本地/远程共用一份用例。
 
 ## 8. 验收标准（GWT）
 
