@@ -1,0 +1,38 @@
+{
+	"name": "@managed/pi",
+	"version": "0.80.10",
+	"description": "Managed agents: sandbox worker, session service, and remote clients for pi",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"clean": "shx rm -rf dist",
+		"build": "tsgo -p tsconfig.build.json",
+		"test": "vitest --run"
+	},
+	"keywords": [
+		"managed",
+		"sandbox",
+		"agent"
+	],
+	"license": "MIT",
+	"engines": {
+		"node": ">=22.19.0"
+	},
+	"devDependencies": {
+		"@types/node": "24.12.4",
+		"typescript": "5.9.3",
+		"vitest": "4.1.9"
+	}
+}
