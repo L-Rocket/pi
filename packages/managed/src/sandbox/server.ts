@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { access, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, join } from "node:path";
 import { RPC_ERROR_HTTP_STATUS, type RpcErrorCode, rpcError } from "../protocol/errors.ts";
@@ -9,8 +9,8 @@ import {
 	type FindRequest,
 	type FsAccessRequest,
 	type FsMkdirRequest,
-	type FsReadRequest,
 	type FsReaddirRequest,
+	type FsReadRequest,
 	type FsStatRequest,
 	type FsWriteRequest,
 	type GrepRequest,
@@ -19,8 +19,8 @@ import {
 	isFindRequest,
 	isFsAccessRequest,
 	isFsMkdirRequest,
-	isFsReadRequest,
 	isFsReaddirRequest,
+	isFsReadRequest,
 	isFsStatRequest,
 	isFsWriteRequest,
 	isGrepRequest,

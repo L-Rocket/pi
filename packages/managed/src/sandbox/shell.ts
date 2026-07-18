@@ -2,8 +2,8 @@
 // packages/coding-agent/src/utils/shell.ts. Kept as a local copy so @managed/pi
 // stays dependency-free (no reverse dependency on coding-agent).
 
-import { existsSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 export interface ShellConfig {
 	shell: string;

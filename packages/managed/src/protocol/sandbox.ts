@@ -100,6 +100,7 @@ export interface FindRequest {
 	pattern: string;
 	path: string;
 	limit?: number;
+	ignore?: string[];
 }
 
 export interface FindResponse {
@@ -198,5 +199,12 @@ export function isGrepRequest(value: unknown): value is GrepRequest {
 
 export function isFindRequest(value: unknown): value is FindRequest {
 	if (!isRecord(value)) return false;
-	return typeof value.pattern === "string" && hasPath(value) && hasOptionalNumber(value, "limit");
+	if (typeof value.pattern !== "string" || !hasPath(value) || !hasOptionalNumber(value, "limit")) return false;
+	if (value.ignore !== undefined) {
+		if (!Array.isArray(value.ignore)) return false;
+		for (const entry of value.ignore) {
+			if (typeof entry !== "string") return false;
+		}
+	}
+	return true;
 }

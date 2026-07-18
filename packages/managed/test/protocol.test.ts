@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-	isRpcError,
-	RPC_ERROR_HTTP_STATUS,
-	rpcError,
-} from "../src/protocol/errors.ts";
+import { isRpcError, RPC_ERROR_HTTP_STATUS, rpcError } from "../src/protocol/errors.ts";
 import {
 	type BashExecRequest,
 	type FindRequest,
@@ -18,8 +14,8 @@ import {
 	isFindRequest,
 	isFsAccessRequest,
 	isFsMkdirRequest,
-	isFsReadRequest,
 	isFsReaddirRequest,
+	isFsReadRequest,
 	isFsStatRequest,
 	isFsWriteRequest,
 	isGrepRequest,

@@ -1,9 +1,8 @@
-import { mkdir, symlink, writeFile } from "node:fs/promises";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createJail, JailError, type Jail } from "../src/sandbox/jail.ts";
+import { createJail, type Jail, JailError } from "../src/sandbox/jail.ts";
 
 let root: string;
 let outside: string;

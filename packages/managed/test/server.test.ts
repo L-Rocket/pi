@@ -1,18 +1,17 @@
 import { execSync } from "node:child_process";
-import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { mkdtemp } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { RpcError } from "../src/protocol/errors.ts";
 import type {
 	BashExecResponse,
 	FindResponse,
 	FsAccessResponse,
-	FsReadResponse,
 	FsReaddirResponse,
+	FsReadResponse,
 	FsStatResponse,
 	GrepResponse,
 } from "../src/protocol/sandbox.ts";
