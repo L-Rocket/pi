@@ -4,104 +4,104 @@
     "category": "阶段 1：基础设施",
     "task": "packages/managed 包骨架",
     "steps": [
-      { "step": "创建 packages/managed 目录结构（src/protocol、src/sandbox、src/client、test）", "completed": false },
-      { "step": "编写 package.json（@earendil-works/pi-managed，零运行时依赖，devDeps 与仓库现有版本一致）", "completed": false },
-      { "step": "根 tsconfig.json 增加 @earendil-works/pi-managed paths 映射", "completed": false },
-      { "step": "npm install --package-lock-only --ignore-scripts 刷新锁文件", "completed": false },
-      { "step": "提交：骨架 + 锁文件（PI_ALLOW_LOCKFILE_CHANGE=1）", "completed": false }
+      { "step": "创建 packages/managed 目录结构（src/protocol、src/sandbox、src/client、test）", "completed": true },
+      { "step": "编写 package.json（@earendil-works/pi-managed，零运行时依赖，devDeps 与仓库现有版本一致）", "completed": true },
+      { "step": "根 tsconfig.json 增加 @earendil-works/pi-managed paths 映射", "completed": true },
+      { "step": "npm install --package-lock-only --ignore-scripts 刷新锁文件", "completed": true },
+      { "step": "提交：骨架 + 锁文件（PI_ALLOW_LOCKFILE_CHANGE=1）", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 2,
     "category": "阶段 1：基础设施",
     "task": "协议类型与错误码",
     "steps": [
-      { "step": "protocol/errors.ts：RpcError 类型、错误码常量、HTTP 状态映射", "completed": false },
-      { "step": "protocol/sandbox.ts：接口规范 §3.2 全部请求/响应类型", "completed": false },
-      { "step": "golden fixtures + 编解码 round-trip 测试", "completed": false },
-      { "step": "提交：协议类型", "completed": false }
+      { "step": "protocol/errors.ts：RpcError 类型、错误码常量、HTTP 状态映射", "completed": true },
+      { "step": "protocol/sandbox.ts：接口规范 §3.2 全部请求/响应类型", "completed": true },
+      { "step": "golden fixtures + 编解码 round-trip 测试", "completed": true },
+      { "step": "提交：协议类型", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 3,
     "category": "阶段 2：Worker 实现",
     "task": "jail 与 env scrub",
     "steps": [
-      { "step": "sandbox/jail.ts：resolveJailPath（resolve + realpath + 前缀校验，JailError）", "completed": false },
-      { "step": "sandbox/env.ts：白名单 {PATH,HOME,LANG,LC_ALL,TERM,TMPDIR} + 请求 env 合并", "completed": false },
-      { "step": "单元测试：.. 逃逸、绝对路径逃逸、符号链接逃逸、root 本身、env 白名单不泄漏 worker env", "completed": false }
+      { "step": "sandbox/jail.ts：resolveJailPath（resolve + realpath + 前缀校验，JailError）", "completed": true },
+      { "step": "sandbox/env.ts：白名单 {PATH,HOME,LANG,LC_ALL,TERM,TMPDIR} + 请求 env 合并", "completed": true },
+      { "step": "单元测试：.. 逃逸、绝对路径逃逸、符号链接逃逸、root 本身、env 白名单不泄漏 worker env", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 4,
     "category": "阶段 2：Worker 实现",
     "task": "bash exec/cancel 与 fs/search 端点",
     "steps": [
-      { "step": "sandbox/exec.ts：opId 注册表、spawn（复刻上游 shell 解析与 killProcessTree）、超时杀进程树、32MB 截断标志", "completed": false },
-      { "step": "sandbox/search.ts：spawn rg --json / fd --glob，limit 截断 + truncated 标志", "completed": false },
-      { "step": "sandbox/server.ts：node:http 路由、64MB body 上限、错误码映射、/v1/healthz", "completed": false },
-      { "step": "裸 HTTP 契约测试：全部端点 + cancel 杀进程树 + env 无泄漏 + 逃逸 403", "completed": false },
-      { "step": "提交：Sandbox Worker", "completed": false }
+      { "step": "sandbox/exec.ts：opId 注册表、spawn（复刻上游 shell 解析与 killProcessTree）、超时杀进程树、32MB 截断标志", "completed": true },
+      { "step": "sandbox/search.ts：spawn rg --json / fd --glob，limit 截断 + truncated 标志，结果路径相对化", "completed": true },
+      { "step": "sandbox/server.ts：node:http 路由、64MB body 上限、错误码映射、/v1/healthz", "completed": true },
+      { "step": "裸 HTTP 契约测试：全部端点 + cancel 杀进程树 + env 无泄漏 + 逃逸 403", "completed": true },
+      { "step": "提交：Sandbox Worker", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 5,
     "category": "阶段 2：Worker 实现",
     "task": "sandbox client 与 7 个远程 *Operations",
     "steps": [
-      { "step": "client/sandbox-client.ts：fetch 封装、错误体→Error、冷启动连接重试（60s 预算指数退避，仅连接失败）", "completed": false },
-      { "step": "client/operations.ts：7 个远程 *Operations（结构化类型，不 import coding-agent）", "completed": false },
-      { "step": "行为一致性套件：同一组用例对本地 ops 与远程 ops 各跑一遍（结果 + 错误形状 ENOENT/aborted/timeout:n 一致）", "completed": false },
-      { "step": "提交：client + operations + 一致性测试", "completed": false }
+      { "step": "client/sandbox-client.ts：fetch 封装、错误体→Error、冷启动连接重试（60s 预算指数退避，仅连接失败）", "completed": true },
+      { "step": "client/operations.ts：7 个远程 *Operations（结构化类型，不 import coding-agent）", "completed": true },
+      { "step": "行为一致性测试：对真实 worker 断言结果与错误形状（ENOENT/aborted/timeout:n）与本地语义一致", "completed": true },
+      { "step": "提交：client + operations + 一致性测试", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 6,
     "category": "阶段 3：上游修补",
     "task": "grep search hook（additive）",
     "steps": [
-      { "step": "grep.ts：GrepOperations 增加可选 search 成员，提供时跳过本地 rg spawn（仿 find.ts:155 glob 分支）", "completed": false },
-      { "step": "测试：自定义 search 被调用时本地不 spawn；缺省时行为与现状一致", "completed": false }
+      { "step": "grep.ts：GrepOperations 增加可选 search 成员，提供时跳过本地 rg spawn（仿 find.ts:155 glob 分支）", "completed": true },
+      { "step": "测试：自定义 search 的格式化/context 展开/limit 通知与 rg 路径一致；缺省时行为与现状一致", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 7,
     "category": "阶段 3：上游修补",
     "task": "bash 溢出持久化 hook（additive）",
     "steps": [
-      { "step": "bash.ts：BashOperations 增加可选溢出持久化 hook，提供时以其返回值作为 fullOutputPath", "completed": false },
-      { "step": "远程实现经 /v1/fs/write 写 <root>/.pi/tmp/bash-<opId>.log", "completed": false },
-      { "step": "测试：大输出场景远程模式 fullOutputPath 指向沙箱路径且可经 /v1/fs/read 读回", "completed": false },
-      { "step": "提交：两处上游修补", "completed": false }
+      { "step": "bash.ts：BashToolOptions 增加可选 persistFullOutput hook，以其返回值作为 fullOutputPath", "completed": true },
+      { "step": "远程实现经 /v1/fs/write 写 <cwd>/.pi/tool-output/<basename> 并删除本地副本", "completed": true },
+      { "step": "测试：大输出场景远程模式 fullOutputPath 指向沙箱路径且可经远程 read 读回", "completed": true },
+      { "step": "提交：两处上游修补", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 8,
     "category": "阶段 3：集成",
     "task": "PI_SANDBOX_URL 接线",
     "steps": [
-      { "step": "managed config.ts：resolveManagedConfig() 读 PI_SANDBOX_URL/PI_MANAGED_TOKEN", "completed": false },
-      { "step": "agent-session.ts _buildRuntime：sandboxUrl 存在时合并注入 7 个远程 operations", "completed": false },
-      { "step": "集成冒烟：faux provider 完整 turn（读→改→bash），断言副作用落在 worker root", "completed": false },
-      { "step": "提交：接线", "completed": false }
+      { "step": "coding-agent tools/remote.ts：createSandboxToolsOptions() 读 PI_SANDBOX_URL/PI_MANAGED_TOKEN", "completed": true },
+      { "step": "agent-session.ts _buildRuntime：sandboxUrl 存在时合并注入 7 个远程 operations", "completed": true },
+      { "step": "集成冒烟：remote-tools.test.ts 对真实 worker 端到端跑 bash/grep/read/write/find + 溢出重定位", "completed": true },
+      { "step": "提交：接线", "completed": true }
     ],
-    "passes": false
+    "passes": true
   },
   {
     "number": 9,
     "category": "阶段 4：质量",
     "task": "全量验证",
     "steps": [
-      { "step": "npm run check 全绿（biome/tsgo/pinned-deps）", "completed": false },
+      { "step": "npm run check 全绿（biome/tsgo/pinned-deps）", "completed": true },
       { "step": "./test.sh 非 e2e 套件全绿（本地回落回归）", "completed": false },
-      { "step": "packages/managed 测试全绿", "completed": false }
+      { "step": "packages/managed 测试全绿", "completed": true }
     ],
     "passes": false
   }

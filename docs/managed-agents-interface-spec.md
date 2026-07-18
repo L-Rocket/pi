@@ -161,15 +161,18 @@ type RpcError = { error: { code: string; message: string } };
 }
 ```
 
-实现：worker 内 spawn `rg --json`（二进制随 worker 镜像分发），全量收集后按 limit 截断。**注意**：此端点返回 context 行，使 Runtime 侧无需再对每个 match 调 `/v1/fs/read`（本地方案里 `GrepOperations.readFile` 的用途）。
+`matches[].path` 为**相对请求 `path` 的相对路径**（搜索单文件时为 `"."`），客户端用请求路径重新锚定到 Runtime 侧绝对路径，从而允许两侧 root 不同。
+
+实现：worker 内 spawn `rg --json`（二进制随 worker 镜像分发），全量收集后按 limit 截断。**注意**：服务端支持返回 context 行；M1 客户端走瘦 hook（`GrepOperations.search`，context 传 0），context 展开由工具经 `GrepOperations.readFile` 完成，与本地 rg 路径共享同一套格式化逻辑，保证输出逐字节一致。
 
 #### `POST /v1/find`
 
 ```ts
 // Request
-{ pattern: string; path: string; limit?: number }   // 默认 1000
+{ pattern: string; path: string; limit?: number;    // 默认 1000
+  ignore?: string[] }                               // 映射为 fd --exclude（上游工具固定传 ["**/node_modules/**", "**/.git/**"]）
 // Response
-{ paths: string[]; truncated: boolean }             // 相对 path 的相对路径
+{ paths: string[]; truncated: boolean }             // 相对请求 path 的相对路径，客户端重新锚定
 ```
 
 实现：worker 内 spawn `fd --glob`，遵守 `.gitignore`（与上游一致）。
