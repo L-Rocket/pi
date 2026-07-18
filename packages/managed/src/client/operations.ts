@@ -5,7 +5,8 @@
 // See docs/managed-agents-interface-spec.md §5.2.
 
 import { randomUUID } from "node:crypto";
-import { join, relative, sep } from "node:path";
+import { readFile as fsReadFile, unlink as fsUnlink } from "node:fs/promises";
+import { basename, join, relative, sep } from "node:path";
 import {
 	type BashExecResponse,
 	type FindResponse,
@@ -360,6 +361,30 @@ export function createRemoteFindOperations(
 			);
 			return response.paths.map((p) => join(cwd, p));
 		},
+	};
+}
+
+// ---------------------------------------------------------------------------
+// bash overflow persistence
+
+/**
+ * Build a BashToolOptions.persistFullOutput hook that copies the runtime-local
+ * overflow file into the sandbox under the workspace (the jail confines reads
+ * to the workspace root, so the file must live there to stay reachable).
+ * Returns the runtime-anchored absolute path presented to the model.
+ */
+export function createSandboxOverflowPersistence(
+	client: SandboxClient,
+	options: RemoteOperationsOptions & { dir?: string },
+): (localPath: string) => Promise<string> {
+	const dir = options.dir ?? ".pi/tool-output";
+	return async (localPath: string) => {
+		const content = await fsReadFile(localPath);
+		const relativePath = `${dir}/${basename(localPath)}`;
+		await client.call(SANDBOX_ENDPOINTS.fsMkdir, { path: dir, recursive: true });
+		await client.call(SANDBOX_ENDPOINTS.fsWrite, { path: relativePath, content: content.toString("base64") });
+		await fsUnlink(localPath).catch(() => {});
+		return join(options.cwd, relativePath);
 	};
 }
 

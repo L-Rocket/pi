@@ -15,7 +15,7 @@
 
 ```
 packages/managed/
-├── package.json               # @managed/pi（无新增运行时依赖，仅用 node 内置 + workspace 包）
+├── package.json               # @earendil-works/pi-managed（无新增运行时依赖，仅用 node 内置 + workspace 包）
 ├── src/
 │   ├── protocol/
 │   │   ├── sandbox.ts         # 沙箱 RPC 请求/响应类型 + 编解码

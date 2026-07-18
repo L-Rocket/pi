@@ -1,16 +1,22 @@
+import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRemoteToolOperations, type RemoteToolOperations } from "../src/client/operations.ts";
+import {
+	createRemoteToolOperations,
+	createSandboxOverflowPersistence,
+	type RemoteToolOperations,
+} from "../src/client/operations.ts";
 import { SandboxClient } from "../src/client/sandbox-client.ts";
 import { createSandboxServer } from "../src/sandbox/server.ts";
 
 // The runtime cwd and sandbox root are the same tmpdir, mirroring M1 local dev.
 let root: string;
 let server: Server;
+let client: SandboxClient;
 let ops: RemoteToolOperations;
 
 const PNG_1X1 = Buffer.from(
@@ -31,7 +37,7 @@ beforeAll(async () => {
 	server = await createSandboxServer({ root });
 	await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 	const address = server.address() as AddressInfo;
-	const client = new SandboxClient({ baseUrl: `http://127.0.0.1:${address.port}` });
+	client = new SandboxClient({ baseUrl: `http://127.0.0.1:${address.port}` });
 	ops = createRemoteToolOperations(client, { cwd: root });
 });
 
@@ -157,6 +163,23 @@ describe("grep operations", () => {
 		const limited = await ops.grep.search({ pattern: "foo", path: root, limit: 1 });
 		expect(limited.matches).toHaveLength(1);
 		expect(limited.limitReached).toBe(true);
+	});
+});
+
+describe("overflow persistence", () => {
+	it("copies the local overflow file into the sandbox and removes the local copy", async () => {
+		const localDir = await mkdtemp(join(tmpdir(), "overflow-local-"));
+		const localPath = join(localDir, "pi-bash-deadbeef.log");
+		await writeFile(localPath, "full\noutput\n");
+
+		const persist = createSandboxOverflowPersistence(client, { cwd: root });
+		const presented = await persist(localPath);
+
+		expect(presented).toBe(join(root, ".pi", "tool-output", "pi-bash-deadbeef.log"));
+		const content = await ops.read.readFile(presented);
+		expect(content.toString("utf-8")).toBe("full\noutput\n");
+		expect(existsSync(localPath)).toBe(false);
+		await rm(localDir, { recursive: true, force: true });
 	});
 });
 

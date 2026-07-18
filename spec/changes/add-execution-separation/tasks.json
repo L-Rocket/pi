@@ -5,8 +5,8 @@
     "task": "packages/managed 包骨架",
     "steps": [
       { "step": "创建 packages/managed 目录结构（src/protocol、src/sandbox、src/client、test）", "completed": false },
-      { "step": "编写 package.json（@managed/pi，零运行时依赖，devDeps 与仓库现有版本一致）", "completed": false },
-      { "step": "根 tsconfig.json 增加 @managed/pi paths 映射", "completed": false },
+      { "step": "编写 package.json（@earendil-works/pi-managed，零运行时依赖，devDeps 与仓库现有版本一致）", "completed": false },
+      { "step": "根 tsconfig.json 增加 @earendil-works/pi-managed paths 映射", "completed": false },
       { "step": "npm install --package-lock-only --ignore-scripts 刷新锁文件", "completed": false },
       { "step": "提交：骨架 + 锁文件（PI_ALLOW_LOCKFILE_CHANGE=1）", "completed": false }
     ],

@@ -1,5 +1,5 @@
 // Minimal shell resolution and process-tree kill, mirroring the semantics of
-// packages/coding-agent/src/utils/shell.ts. Kept as a local copy so @managed/pi
+// packages/coding-agent/src/utils/shell.ts. Kept as a local copy so @earendil-works/pi-managed
 // stays dependency-free (no reverse dependency on coding-agent).
 
 import { spawn, spawnSync } from "node:child_process";

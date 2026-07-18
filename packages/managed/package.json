@@ -1,5 +1,5 @@
 {
-	"name": "@managed/pi",
+	"name": "@earendil-works/pi-managed",
 	"version": "0.80.10",
 	"description": "Managed agents: sandbox worker, session service, and remote clients for pi",
 	"type": "module",
